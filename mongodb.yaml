@@ -41,7 +41,7 @@ metadata:
   annotations:
     helm.sh/resource-policy: keep
 data:
-  baseUrl: https://cloud.mongodb.com
+  baseUrl: https://cloud.mongodb.com # Change to your ops manager url
   projectName: eks-test
   orgId: "" # if and .Values.community false
 ---
