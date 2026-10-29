@@ -1,0 +1,135 @@
+---
+# Source: quick-cluster/templates/clusters/users.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: storage-test-root-password
+  namespace: mongodb
+stringData:
+  password: password
+
+
+---
+# Source: quick-cluster/templates/clusters/users.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: storage-test-search-sync-source-password
+  namespace: mongodb
+stringData:
+  password: password # if .Values.authEnabled
+---
+# Source: quick-cluster/templates/project/omSecret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: eks-test-organization-secret
+  namespace: mongodb
+  annotations:
+    helm.sh/resource-policy: keep
+stringData:
+  publicKey: ""
+  privateKey: "" # if and .Values.community false
+
+---
+# Source: quick-cluster/templates/project/configMap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eks-test-cm
+  namespace: mongodb
+  annotations:
+    helm.sh/resource-policy: keep
+data:
+  baseUrl: https://cloud.mongodb.com
+  projectName: eks-test
+  orgId: "" # if and .Values.community false
+---
+# Source: quick-cluster/templates/search/search.yaml
+# - if eq .Values.searchEnabled true
+---
+# Source: quick-cluster/templates/tls/certs.yaml
+### Generate certificate chain if tlsEnabled = true # - if eq .Values.tlsEnabled true
+---
+# Source: quick-cluster/templates/clusters/rs.yaml
+apiVersion: mongodb.com/v1
+kind: MongoDB
+metadata:
+  name: storage-test
+  namespace: mongodb
+spec:
+  type: ReplicaSet
+  members: 3
+  version: "9.0.4"
+  persistent: true
+  opsManager:
+    configMapRef:
+      name: eks-test-cm
+  credentials: eks-test-organization-secret
+  # Disable authentication to be able to manage the database without credentials
+  # do not do this in production environments
+  security:
+    authentication:
+      enabled: true
+      modes: ["SCRAM"] # - if eq .Values.tlsEnabled true
+  podSpec:
+    persistence:
+      single:
+        storage: 10Gi
+        storageClass: local-path
+  
+  ## Expose cluster externally
+---
+# Source: quick-cluster/templates/clusters/users.yaml
+apiVersion: mongodb.com/v1
+kind: MongoDBUser
+metadata:
+  name: root
+  namespace: mongodb
+spec:
+  username: root
+  db: admin
+  mongodbResourceRef:
+    name: storage-test
+  passwordSecretKeyRef:
+    name: storage-test-root-password
+    key: password
+  roles:
+  - name: root
+    db: admin
+
+
+---
+# Source: quick-cluster/templates/clusters/users.yaml
+apiVersion: mongodb.com/v1
+kind: MongoDBUser
+metadata:
+  name: search-sync-source
+  namespace: mongodb
+spec:
+  username: search-sync-source
+  db: admin
+  mongodbResourceRef:
+    name: storage-test
+  passwordSecretKeyRef:
+    name: storage-test-search-sync-source-password
+    key: password
+  roles:
+  - name: searchCoordinator
+    db: admin
+
+---
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: storage-test-mongoclient
+  namespace: mongodb
+spec:
+  restartPolicy: Always
+  containers:
+  - command:
+    - sleep
+    - infinity
+    image: mongo
+    name: mongoclient
