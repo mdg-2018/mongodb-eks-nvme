@@ -66,6 +66,8 @@ data:
 # Configuring MongoDB
 Finally, for my MongoDB replica set I configured spec.podSpec.persistence.single.storageClass to use the local-path storage class from the Rancher local-path-provisioner. After spinning up the replica set I was able to see the data from the resulting PVC in /opt/local-path-provisioner on the nodes I deployed.
 
+One important note, make the storage size (<code>spec.podSpec.persistence.single.storage</code>) larger than you think you'll need. Because this storage class won't support expanding volumes, the only way to increase the storage size later will be to update your MongoDB config and then delete one of the nodes AND its associated PVC and then wait for the data to re-sync when the MongoDB node comes back up. Then follow that same procedure with the remaining two nodes.
+
 
 ```yaml
 apiVersion: mongodb.com/v1
